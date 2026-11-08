@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>評価損益</title>
+<style>
+  :root { --ink:#2b2b2b; --sub:#777; --line:#e3ded6; --bg:#faf8f4; --card:#fff; --accent:#3a7bd5; --up:#d9534f; --down:#3a7bd5; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 16px 14px 40px; }
+  h1 { font-size: 17px; font-weight: 600; margin: 4px 0 12px; color: var(--sub); letter-spacing: .08em; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .big { font-size: 40px; font-weight: 700; line-height: 1.15; }
+  .big .yen { font-size: 20px; font-weight: 600; }
+  .diff { font-size: 15px; margin-top: 4px; }
+  .up { color: var(--up); } .down { color: var(--down); }
+  .small-nums { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px; font-size: 14px; color: var(--sub); }
+  .small-nums b { color: var(--ink); font-size: 16px; }
+  .badges { margin-top: 10px; font-size: 14px; line-height: 1.9; }
+  .badges .star { color: #e6a817; font-weight: 700; }
+  .chart-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .chart-head .ttl { font-size: 14px; color: var(--sub); }
+  .toggle button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 5px 14px; font-size: 13px; cursor: pointer; }
+  .toggle button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  canvas { width: 100%; height: 260px; display: block; }
+  label { font-size: 13px; color: var(--sub); display: block; margin: 10px 0 4px; }
+  input[type="date"], input[type="number"], input[type="password"], input[type="text"] {
+    width: 100%; font-size: 17px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+  }
+  .btn { width: 100%; margin-top: 14px; padding: 13px; font-size: 16px; font-weight: 600; border: none; border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer; }
+  .btn.sub { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+  .btn:active { opacity: .8; }
+  .msg { font-size: 14px; margin-top: 10px; min-height: 20px; }
+  .err { color: #d9534f; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td, th { padding: 7px 4px; border-bottom: 1px solid var(--line); text-align: right; }
+  td:first-child, th:first-child { text-align: left; }
+  .rec-actions button { font-size: 12px; padding: 4px 10px; margin-left: 6px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+  .hidden { display: none; }
+  .sec-ttl { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+  .note { font-size: 12px; color: var(--sub); line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>評価損益</h1>
+
+  <!-- 合言葉 -->
+  <div class="card" id="passCard">
+    <p class="sec-ttl">合言葉</p>
+    <p class="note">最初に1回だけ入力します。この端末の中にだけ保存されます。</p>
+    <label>合言葉</label>
+    <input type="password" id="passInput" autocomplete="off">
+    <button class="btn" id="passBtn">つなぐ</button>
+    <div class="msg err" id="passMsg"></div>
+  </div>
+
+  <div id="main" class="hidden">
+    <!-- 現在の評価損益 -->
+    <div class="card">
+      <div class="big"><span id="latestValue">―</span> <span class="yen">円</span></div>
+      <div class="diff" id="latestDiff"></div>
+      <div class="badges" id="badges"></div>
+      <div class="small-nums">
+        <span>評価額 <b id="hyokagaku">―</b> 円</span>
+        <span>累計入金額 <b id="cumulative">―</b> 円</span>
+        <span>利回り <b id="rate">―</b></span>
+      </div>
+      <div class="note" id="latestDate" style="margin-top:8px;"></div>
+    </div>
+
+    <!-- グラフ -->
+    <div class="card">
+      <div class="chart-head">
+        <span class="ttl">評価損益の推移</span>
+        <span class="toggle">
+          <button id="range1y" class="on">直近1年</button>
+          <button id="rangeAll">全期間</button>
+        </span>
+      </div>
+      <canvas id="chart"></canvas>
+      <div class="note">記録が空いた期間（60日以上）は、線をつながずに空けています。</div>
+    </div>
+
+    <!-- 毎日の入力 -->
+    <div class="card">
+      <p class="sec-ttl">今日の記録</p>
+      <label>日付</label>
+      <input type="date" id="addDate">
+      <label>評価額（証券会社の画面の合計、そのまま）</label>
+      <input type="number" id="addValue" inputmode="numeric" placeholder="例：4064684">
+      <button class="btn" id="addBtn">記録する</button>
+      <div class="msg" id="addMsg"></div>
+    </div>
+
+    <!-- 入金 -->
+    <div class="card">
+      <p class="sec-ttl">入金した日</p>
+      <label>日付</label>
+      <input type="date" id="depDate">
+      <label>今回入れた金額</label>
+      <input type="number" id="depAmount" inputmode="numeric" placeholder="例：200000">
+      <button class="btn sub" id="depBtn">入金を記録する</button>
+      <div class="msg" id="depMsg"></div>
+      <p class="note">入金した日にその日の評価額も入れる場合は、先に入金を記録してから「今日の記録」を入れてください。</p>
+    </div>
+
+    <!-- 年ごとの増え方 -->
+    <div class="card">
+      <p class="sec-ttl">年ごとの増え方</p>
+      <table id="yearTable"><tbody></tbody></table>
+    </div>
+
+    <!-- 最近の記録（修正・削除） -->
+    <div class="card">
+      <p class="sec-ttl">最近の記録</p>
+      <table id="recTable"><tbody></tbody></table>
+    </div>
+
+    <p class="note">データの本体は Google スプレッドシートです。このアプリは橋渡し経由で読み書きしています。</p>
+  </div>
+</div>
+
+<script>
+const BRIDGE_URL = 'https://script.google.com/macros/s/AKfycbz8YTIL3veIodSwpwNb6mQTwqa-OrnU8_AISlCZhGaFVEsqqunHFDGqcTloiDbTanyA/exec';
+const PASS_KEY = 'hyoka_soneki_pass';
+let state = { rows: [], deposits: [], cumulativeDeposit: 0, latest: null, max: null };
+let rangeMode = '1y';
+
+const fmt = n => Math.round(n).toLocaleString('ja-JP');
+const todayJST = () => {
+  const d = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return d.toISOString().slice(0, 10);
+};
+
+async function callBridge(action, payload) {
+  const pass = localStorage.getItem(PASS_KEY) || '';
+  const res = await fetch(BRIDGE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ pass: pass, action: action }, payload || {})),
+  });
+  return res.json();
+}
+
+// その日時点の累計入金額（アプリ側の表示用。橋渡し側でも再計算される）
+function cumulativeAsOf(date) {
+  let total = state.cumulativeDeposit;
+  const list = state.deposits;
+  if (list.length) {
+    total = list[0].total;
+    list.forEach(d => { if (d.date <= date) total = d.total; });
+    if (date >= list[list.length - 1].date) total = state.cumulativeDeposit || total;
+  }
+  return total;
+}
+
+async function load() {
+  const r = await callBridge('read');
+  if (!r.ok) throw new Error(r.error || '読み取りに失敗しました');
+  state = r;
+  render();
+}
+
+function render() {
+  const rows = state.rows;
+  if (!rows.length) return;
+  const latest = state.latest, max = state.max;
+  const prev = rows.length >= 2 ? rows[rows.length - 2] : null;
+  document.getElementById('latestValue').textContent = fmt(latest.value);
+  const diffEl = document.getElementById('latestDiff');
+  if (prev) {
+    const d = latest.value - prev.value;
+    diffEl.textContent = '前回（' + prev.date + '）から ' + (d >= 0 ? '+' : '') + fmt(d) + '円';
+    diffEl.className = 'diff ' + (d >= 0 ? 'up' : 'down');
+  } else diffEl.textContent = '';
+  const cum = state.cumulativeDeposit;
+  document.getElementById('hyokagaku').textContent = fmt(latest.value + cum);
+  document.getElementById('cumulative').textContent = fmt(cum);
+  document.getElementById('rate').textContent = cum ? (latest.value / cum * 100).toFixed(1) + '%' : '―';
+  document.getElementById('latestDate').textContent = '最新：' + latest.date + ' 時点';
+  // ニヤニヤ用バッジ
+  const b = [];
+  if (max) {
+    if (latest.value >= max.value) b.push('<span class="star">★ 過去最高を更新中</span>（' + max.date + ' と同水準以上）');
+    else b.push('過去最高 ' + fmt(max.value) + '円（' + max.date + '）まで あと <b>' + fmt(max.value - latest.value) + '</b>円');
+  }
+  const nextStep = Math.floor(latest.value / 100000) * 100000 + 100000;
+  if (latest.value < nextStep) b.push('次の節目 ' + fmt(nextStep) + '円まで あと <b>' + fmt(nextStep - latest.value) + '</b>円');
+  document.getElementById('badges').innerHTML = b.join('<br>');
+  renderYears();
+  renderRecords();
+  drawChart();
+}
+
+function renderYears() {
+  const byYear = {};
+  state.rows.forEach(r => { byYear[r.date.slice(0, 4)] = r.value; }); // 年の最後の記録が残る
+  const years = Object.keys(byYear).sort();
+  let prevVal = 0, html = '';
+  years.forEach(y => {
+    const v = byYear[y], d = v - prevVal;
+    html += '<tr><td>' + y + '年</td><td>' + fmt(v) + '円</td><td class="' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '+' : '') + fmt(d) + '円</td></tr>';
+    prevVal = v;
+  });
+  document.querySelector('#yearTable tbody').innerHTML = html;
+}
+
+function renderRecords() {
+  const rows = state.rows.slice(-30).reverse();
+  document.querySelector('#recTable tbody').innerHTML = rows.map(r =>
+    '<tr><td>' + r.date + '</td><td>' + fmt(r.value) + '円</td>' +
+    '<td class="rec-actions"><button data-act="edit" data-date="' + r.date + '">直す</button>' +
+    '<button data-act="del" data-date="' + r.date + '">消す</button></td></tr>'
+  ).join('');
+  document.querySelectorAll('#recTable button').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const date = btn.dataset.date;
+      const row = state.rows.find(r => r.date === date);
+      if (!row) return;
+      if (btn.dataset.act === 'del') {
+        if (!confirm(date + ' の記録（' + fmt(row.value) + '円）を消しますか？シートからも消えます。')) return;
+        const r = await callBridge('delete', { date: date });
+        alert(r.ok ? '消しました' : 'エラー：' + r.error);
+        if (r.ok) load();
+      } else {
+        const now = row.value + cumulativeAsOf(date);
+        const v = prompt(date + ' の評価額を入れてください（今の評価損益 ' + fmt(row.value) + '円 ＝ 評価額 ' + fmt(now) + '円）', now);
+        if (v === null) return;
+        const num = Number(v);
+        if (!num) { alert('数字を入れてください'); return; }
+        const r = await callBridge('update', { date: date, hyokagaku: num });
+        alert(r.ok ? '直しました：' + fmt(r.after) + '円' : 'エラー：' + r.error);
+        if (r.ok) load();
+      }
+    });
+  });
+}
+
+function drawChart() {
+  const cv = document.getElementById('chart');
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+  let rows = state.rows;
+  if (rangeMode === '1y' && rows.length) {
+    const last = rows[rows.length - 1].date;
+    const d = new Date(last + 'T00:00:00+09:00'); d.setFullYear(d.getFullYear() - 1);
+    const from = d.toISOString().slice(0, 10);
+    rows = rows.filter(r => r.date >= from);
+    if (rows.length < 2) rows = state.rows.slice(-2);
+  }
+  if (rows.length < 2) return;
+  const padL = 8, padR = 8, padT = 14, padB = 20;
+  const xs = rows.map(r => new Date(r.date + 'T00:00:00+09:00').getTime());
+  const ys = rows.map(r => r.value);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  let yMin = Math.min(0, ...ys), yMax = Math.max(...ys);
+  const yPad = (yMax - yMin) * 0.08 || 10000; yMin -= yPad; yMax += yPad;
+  const X = t => padL + (t - xMin) / (xMax - xMin || 1) * (W - padL - padR);
+  const Y = v => padT + (yMax - v) / (yMax - yMin || 1) * (H - padT - padB);
+  // 0円ライン
+  ctx.strokeStyle = '#c9c2b4'; ctx.lineWidth = 1; ctx.beginPath();
+  ctx.moveTo(padL, Y(0)); ctx.lineTo(W - padR, Y(0)); ctx.stroke();
+  ctx.fillStyle = '#999'; ctx.font = '11px sans-serif';
+  ctx.fillText('0', padL + 2, Y(0) - 4);
+  ctx.fillText(fmt(yMax - yPad) + '', padL + 2, padT - 3);
+  // 折れ線（60日以上の空白はつながない）
+  ctx.strokeStyle = '#3a7bd5'; ctx.lineWidth = 1.8; ctx.beginPath();
+  let pen = false;
+  rows.forEach((r, i) => {
+    const x = X(xs[i]), y = Y(ys[i]);
+    if (i > 0 && (xs[i] - xs[i - 1]) > 60 * 24 * 60 * 60 * 1000) pen = false;
+    if (!pen) { ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  // 最新点
+  const lx = X(xs[xs.length - 1]), ly = Y(ys[ys.length - 1]);
+  ctx.fillStyle = '#d9534f'; ctx.beginPath(); ctx.arc(lx, ly, 3.5, 0, Math.PI * 2); ctx.fill();
+  // 軸ラベル
+  ctx.fillStyle = '#999';
+  ctx.fillText(rows[0].date, padL, H - 5);
+  const lastLabel = rows[rows.length - 1].date;
+  ctx.fillText(lastLabel, W - padR - ctx.measureText(lastLabel).width, H - 5);
+}
+
+// ===== イベント =====
+document.getElementById('passBtn').addEventListener('click', async () => {
+  const v = document.getElementById('passInput').value.trim();
+  const msg = document.getElementById('passMsg');
+  if (!v) { msg.textContent = '合言葉を入れてください'; return; }
+  localStorage.setItem(PASS_KEY, v);
+  msg.textContent = '';
+  try {
+    await load();
+    document.getElementById('passCard').classList.add('hidden');
+    document.getElementById('main').classList.remove('hidden');
+  } catch (e) {
+    msg.textContent = 'つながりませんでした：' + e.message + '（合言葉が違うと読み取れません）';
+  }
+});
+
+document.getElementById('addBtn').addEventListener('click', async () => {
+  const date = document.getElementById('addDate').value || todayJST();
+  const v = Number(document.getElementById('addValue').value);
+  const msg = document.getElementById('addMsg');
+  if (!v) { msg.textContent = '評価額を入れてください'; msg.className = 'msg err'; return; }
+  const soneki = v - cumulativeAsOf(date);
+  if (!confirm(date + ' の評価損益は ' + fmt(soneki) + '円 になります。記録しますか？')) return;
+  const r = await callBridge('add', { date: date, hyokagaku: v });
+  if (r.ok) {
+    msg.textContent = '記録しました：評価損益 ' + fmt(r.hyokaSoneki) + '円';
+    msg.className = 'msg';
+    document.getElementById('addValue').value = '';
+    load();
+  } else { msg.textContent = 'エラー：' + r.error; msg.className = 'msg err'; }
+});
+
+document.getElementById('depBtn').addEventListener('click', async () => {
+  const date = document.getElementById('depDate').value || todayJST();
+  const v = Number(document.getElementById('depAmount').value);
+  const msg = document.getElementById('depMsg');
+  if (!v) { msg.textContent = '今回入れた金額を入れてください'; msg.className = 'msg err'; return; }
+  const before = cumulativeAsOf(date);
+  if (!confirm('累計入金額 ' + fmt(before) + '円 ＋ 今回 ' + fmt(v) + '円 ＝ ' + fmt(before + v) + '円 で登録しますか？')) return;
+  const r = await callBridge('addDeposit', { date: date, amount: v });
+  if (r.ok) {
+    msg.textContent = '入金を記録しました：累計 ' + fmt(r.after) + '円';
+    msg.className = 'msg';
+    document.getElementById('depAmount').value = '';
+    load();
+  } else { msg.textContent = 'エラー：' + r.error; msg.className = 'msg err'; }
+});
+
+document.getElementById('range1y').addEventListener('click', () => {
+  rangeMode = '1y';
+  document.getElementById('range1y').classList.add('on');
+  document.getElementById('rangeAll').classList.remove('on');
+  drawChart();
+});
+document.getElementById('rangeAll').addEventListener('click', () => {
+  rangeMode = 'all';
+  document.getElementById('rangeAll').classList.add('on');
+  document.getElementById('range1y').classList.remove('on');
+  drawChart();
+});
+window.addEventListener('resize', () => { if (state.rows.length) drawChart(); });
+
+// 初期化
+document.getElementById('addDate').value = todayJST();
+document.getElementById('depDate').value = todayJST();
+if (localStorage.getItem(PASS_KEY)) {
+  load().then(() => {
+    document.getElementById('passCard').classList.add('hidden');
+    document.getElementById('main').classList.remove('hidden');
+  }).catch(() => { /* 合言葉の再入力を促す */ });
+}
+</script>
+</body>
+</html>
