@@ -40,15 +40,45 @@
   .hidden { display: none; }
   .sec-ttl { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
   .note { font-size: 12px; color: var(--sub); line-height: 1.7; }
+  /* ===== デザイン追加（2026-11-09） ===== */
+  .hero { background: linear-gradient(135deg, #43a581, #2f7f9f); color: #fff; border-radius: 16px; padding: 18px 16px; margin-bottom: 14px; box-shadow: 0 4px 14px rgba(47,127,159,.25); }
+  .hero .ttl { font-size: 21px; font-weight: 700; }
+  .hero .sub { font-size: 12px; opacity: .88; margin-top: 3px; }
+  .card { box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+  .ico { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; font-size: 16px; margin-right: 8px; flex: none; }
+  .c-green { background: #e2f2e9; } .c-orange { background: #fdeeda; } .c-blue { background: #e3edfb; }
+  .c-purple { background: #eee7fa; } .c-pink { background: #fbe7ee; } .c-teal { background: #e0f2f1; }
+  .sec-head { display: flex; align-items: center; }
+  .donut-wrap { display: flex; gap: 12px; align-items: center; }
+  .donut-wrap .grow { flex: 1; min-width: 0; }
+  #donut { flex: none; }
+  .legend { font-size: 13px; line-height: 2; margin-top: 10px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+  .btn { background: linear-gradient(135deg, #43a581, #2f7f9f); }
+  .toggle button.on { background: #2f7f9f; border-color: #2f7f9f; }
+  /* ===== スマホ対応（2026-11-09、幅360pxで実寸検証） ===== */
+  .chart-head { flex-wrap: wrap; gap: 8px; }
+  td.nw { white-space: nowrap; }
+  @media (max-width: 560px) {
+    .donut-wrap { flex-direction: column; align-items: stretch; }
+    #donut { margin: 10px auto 0; }
+    .big { font-size: clamp(30px, 11vw, 40px); }
+    table { font-size: 13px; }
+    td, th { padding: 7px 2px; }
+    .rec-actions button { padding: 4px 8px; margin-left: 4px; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>評価損益</h1>
+  <div class="hero">
+    <div class="ttl">💹 評価損益</div>
+    <div class="sub">増えるのをニヤニヤするための記録</div>
+  </div>
 
   <!-- 合言葉 -->
   <div class="card" id="passCard">
-    <p class="sec-ttl">合言葉</p>
+    <p class="sec-ttl sec-head"><span class="ico c-teal">🔑</span>合言葉</p>
     <p class="note">最初に1回だけ入力します。この端末の中にだけ保存されます。</p>
     <label>合言葉</label>
     <input type="password" id="passInput" autocomplete="off">
@@ -59,9 +89,15 @@
   <div id="main" class="hidden">
     <!-- 現在の評価損益 -->
     <div class="card">
-      <div class="big"><span id="latestValue">―</span> <span class="yen">円</span></div>
-      <div class="diff" id="latestDiff"></div>
-      <div class="badges" id="badges"></div>
+      <div class="donut-wrap">
+        <div class="grow">
+          <div class="big"><span id="latestValue">―</span> <span class="yen">円</span></div>
+          <div class="diff" id="latestDiff"></div>
+          <div class="badges" id="badges"></div>
+        </div>
+        <canvas id="donut"></canvas>
+      </div>
+      <div class="legend" id="donutLegend"></div>
       <div class="small-nums">
         <span>評価額 <b id="hyokagaku">―</b> 円</span>
         <span>累計入金額 <b id="cumulative">―</b> 円</span>
@@ -73,7 +109,7 @@
     <!-- グラフ -->
     <div class="card">
       <div class="chart-head">
-        <span class="ttl">評価損益の推移</span>
+        <span class="ttl sec-head"><span class="ico c-blue">📈</span>評価損益の推移</span>
         <span class="toggle">
           <button id="range1y" class="on">直近1年</button>
           <button id="rangeAll">全期間</button>
@@ -85,7 +121,7 @@
 
     <!-- 毎日の入力 -->
     <div class="card">
-      <p class="sec-ttl">今日の記録</p>
+      <p class="sec-ttl sec-head"><span class="ico c-orange">✏️</span>今日の記録</p>
       <label>日付</label>
       <input type="date" id="addDate">
       <label>評価額（証券会社の画面の合計、そのまま）</label>
@@ -96,7 +132,7 @@
 
     <!-- 入金 -->
     <div class="card">
-      <p class="sec-ttl">入金した日</p>
+      <p class="sec-ttl sec-head"><span class="ico c-green">💴</span>入金した日</p>
       <label>日付</label>
       <input type="date" id="depDate">
       <label>今回入れた金額</label>
@@ -109,7 +145,7 @@
     <!-- 期間ごとの増え方 -->
     <div class="card">
       <div class="chart-head">
-        <span class="sec-ttl" style="margin:0;">期間ごとの増え方</span>
+        <span class="sec-ttl sec-head" style="margin:0;"><span class="ico c-purple">📊</span>期間ごとの増え方</span>
         <span class="toggle">
           <button id="granYear" class="on">年ごと</button>
           <button id="granMonth">月ごと</button>
@@ -125,7 +161,7 @@
 
     <!-- 最近の記録（修正・削除） -->
     <div class="card">
-      <p class="sec-ttl">最近の記録</p>
+      <p class="sec-ttl sec-head"><span class="ico c-pink">🗂️</span>最近の記録</p>
       <table id="recTable"><tbody></tbody></table>
     </div>
 
@@ -200,6 +236,7 @@ function render() {
   const nextStep = Math.floor(latest.value / 100000) * 100000 + 100000;
   if (latest.value < nextStep) b.push('次の節目 ' + fmt(nextStep) + '円まで あと <b>' + fmt(nextStep - latest.value) + '</b>円');
   document.getElementById('badges').innerHTML = b.join('<br>');
+  drawDonut();
   renderSummary();
   renderRecords();
   drawChart();
@@ -228,15 +265,15 @@ function renderSummary() {
   const lines = keys.map(k => {
     const v = byPeriod[k], d = v - prevVal;
     prevVal = v;
-    return '<tr><td>' + periodLabel(k) + '</td><td>' + fmt(v) + '円</td><td class="' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '+' : '') + fmt(d) + '円</td></tr>';
+    return '<tr><td>' + periodLabel(k) + '</td><td class="nw">' + fmt(v) + '円</td><td class="nw ' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '+' : '') + fmt(d) + '円</td></tr>';
   });
   document.querySelector('#yearTable tbody').innerHTML = lines.reverse().join(''); // 新しい期間を上に
 }
 
 function renderRecords() {
-  const rows = state.rows.slice(-30).reverse();
+  const rows = state.rows.slice(-5).reverse();
   document.querySelector('#recTable tbody').innerHTML = rows.map(r =>
-    '<tr><td>' + r.date + '</td><td>' + fmt(r.value) + '円</td>' +
+    '<tr><td class="nw">' + r.date + '</td><td class="nw">' + fmt(r.value) + '円</td>' +
     '<td class="rec-actions"><button data-act="edit" data-date="' + r.date + '">直す</button>' +
     '<button data-act="del" data-date="' + r.date + '">消す</button></td></tr>'
   ).join('');
@@ -262,6 +299,42 @@ function renderRecords() {
       }
     });
   });
+}
+
+// 評価額の内訳ドーナツ（元本と含み益／含み損）
+function drawDonut() {
+  const cv = document.getElementById('donut');
+  if (!cv || !state.latest) return;
+  const dpr = window.devicePixelRatio || 1;
+  const S = 118;
+  cv.width = S * dpr; cv.height = S * dpr;
+  cv.style.width = S + 'px'; cv.style.height = S + 'px';
+  const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, S, S);
+  const cum = state.cumulativeDeposit, val = state.latest.value;
+  const total = Math.max(cum, 1);
+  const parts = val >= 0
+    ? [[cum, '#43a581'], [val, '#f2a541']]
+    : [[Math.max(cum + val, 0), '#43a581'], [-val, '#d9534f']];
+  const cx = S / 2, cy = S / 2, w = 15, r = S / 2 - w / 2 - 2;
+  let ang = -Math.PI / 2;
+  ctx.lineWidth = w;
+  parts.forEach(([v, c]) => {
+    if (v <= 0) return;
+    const a = v / total * Math.PI * 2;
+    ctx.strokeStyle = c;
+    ctx.beginPath(); ctx.arc(cx, cy, r, ang, ang + a); ctx.stroke();
+    ang += a;
+  });
+  ctx.fillStyle = '#2b2b2b'; ctx.font = '700 15px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(cum ? (val / cum * 100).toFixed(1) + '%' : '―', cx, cy + 1);
+  ctx.fillStyle = '#999'; ctx.font = '10px sans-serif';
+  ctx.fillText('利回り', cx, cy + 15);
+  document.getElementById('donutLegend').innerHTML =
+    '<span class="dot" style="background:#43a581"></span>元本（累計入金） ' + fmt(cum) + '円<br>' +
+    (val >= 0
+      ? '<span class="dot" style="background:#f2a541"></span>含み益 ' + fmt(val) + '円'
+      : '<span class="dot" style="background:#d9534f"></span>含み損 ' + fmt(val) + '円');
 }
 
 function drawChart() {
