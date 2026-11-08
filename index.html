@@ -106,10 +106,21 @@
       <p class="note">入金した日にその日の評価額も入れる場合は、先に入金を記録してから「今日の記録」を入れてください。</p>
     </div>
 
-    <!-- 年ごとの増え方 -->
+    <!-- 期間ごとの増え方 -->
     <div class="card">
-      <p class="sec-ttl">年ごとの増え方</p>
-      <table id="yearTable"><tbody></tbody></table>
+      <div class="chart-head">
+        <span class="sec-ttl" style="margin:0;">期間ごとの増え方</span>
+        <span class="toggle">
+          <button id="granYear" class="on">年ごと</button>
+          <button id="granMonth">月ごと</button>
+          <button id="granWeek">週ごと</button>
+        </span>
+      </div>
+      <table id="yearTable">
+        <thead><tr><th>期間</th><th>期末の評価損益</th><th>増減</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="note">新しい期間が上に来ます。記録のない期間は飛ばして、前の期間と比べます。週は月曜始まりです。</div>
     </div>
 
     <!-- 最近の記録（修正・削除） -->
@@ -189,22 +200,37 @@ function render() {
   const nextStep = Math.floor(latest.value / 100000) * 100000 + 100000;
   if (latest.value < nextStep) b.push('次の節目 ' + fmt(nextStep) + '円まで あと <b>' + fmt(nextStep - latest.value) + '</b>円');
   document.getElementById('badges').innerHTML = b.join('<br>');
-  renderYears();
+  renderSummary();
   renderRecords();
   drawChart();
 }
 
-function renderYears() {
-  const byYear = {};
-  state.rows.forEach(r => { byYear[r.date.slice(0, 4)] = r.value; }); // 年の最後の記録が残る
-  const years = Object.keys(byYear).sort();
-  let prevVal = 0, html = '';
-  years.forEach(y => {
-    const v = byYear[y], d = v - prevVal;
-    html += '<tr><td>' + y + '年</td><td>' + fmt(v) + '円</td><td class="' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '+' : '') + fmt(d) + '円</td></tr>';
+let summaryMode = 'year';
+function periodKey(dateStr) {
+  if (summaryMode === 'year') return dateStr.slice(0, 4);
+  if (summaryMode === 'month') return dateStr.slice(0, 7);
+  // 週ごと：その週の月曜日の日付をキーにする
+  const d = new Date(dateStr + 'T00:00:00+09:00');
+  const dow = (d.getDay() + 6) % 7; // 月曜=0
+  d.setDate(d.getDate() - dow);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function periodLabel(key) {
+  if (summaryMode === 'year') return key + '年';
+  if (summaryMode === 'month') return key.slice(0, 4) + '年' + Number(key.slice(5, 7)) + '月';
+  return key + 'の週';
+}
+function renderSummary() {
+  const byPeriod = {};
+  state.rows.forEach(r => { byPeriod[periodKey(r.date)] = r.value; }); // 期間の最後の記録が残る
+  const keys = Object.keys(byPeriod).sort();
+  let prevVal = 0;
+  const lines = keys.map(k => {
+    const v = byPeriod[k], d = v - prevVal;
     prevVal = v;
+    return '<tr><td>' + periodLabel(k) + '</td><td>' + fmt(v) + '円</td><td class="' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '+' : '') + fmt(d) + '円</td></tr>';
   });
-  document.querySelector('#yearTable tbody').innerHTML = html;
+  document.querySelector('#yearTable tbody').innerHTML = lines.reverse().join(''); // 新しい期間を上に
 }
 
 function renderRecords() {
@@ -348,6 +374,15 @@ document.getElementById('rangeAll').addEventListener('click', () => {
   drawChart();
 });
 window.addEventListener('resize', () => { if (state.rows.length) drawChart(); });
+
+[['granYear', 'year'], ['granMonth', 'month'], ['granWeek', 'week']].forEach(([id, mode]) => {
+  document.getElementById(id).addEventListener('click', () => {
+    summaryMode = mode;
+    ['granYear', 'granMonth', 'granWeek'].forEach(x => document.getElementById(x).classList.remove('on'));
+    document.getElementById(id).classList.add('on');
+    renderSummary();
+  });
+});
 
 // 初期化
 document.getElementById('addDate').value = todayJST();
