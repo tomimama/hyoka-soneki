@@ -338,6 +338,8 @@ function drawDonut() {
 
 function drawChart() {
   const cv = document.getElementById('chart');
+  // 非表示のうちは幅が0で描けないので、表示されたタイミングで描き直す
+  if (!cv.clientWidth) { requestAnimationFrame(() => { if (state.rows.length) drawChart(); }); return; }
   const dpr = window.devicePixelRatio || 1;
   const W = cv.clientWidth, H = cv.clientHeight;
   cv.width = W * dpr; cv.height = H * dpr;
@@ -396,6 +398,7 @@ document.getElementById('passBtn').addEventListener('click', async () => {
     await load();
     document.getElementById('passCard').classList.add('hidden');
     document.getElementById('main').classList.remove('hidden');
+    requestAnimationFrame(() => { drawChart(); drawDonut(); });
   } catch (e) {
     msg.textContent = 'つながりませんでした：' + e.message + '（合言葉が違うと読み取れません）';
   }
@@ -463,6 +466,7 @@ if (localStorage.getItem(PASS_KEY)) {
   load().then(() => {
     document.getElementById('passCard').classList.add('hidden');
     document.getElementById('main').classList.remove('hidden');
+    requestAnimationFrame(() => { drawChart(); drawDonut(); });
   }).catch(() => { /* 合言葉の再入力を促す */ });
 }
 </script>
