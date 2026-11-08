@@ -260,7 +260,7 @@ function renderSummary() {
 }
 
 function renderRecords() {
-  const rows = state.rows.slice(-30).reverse();
+  const rows = state.rows.slice(-5).reverse();
   document.querySelector('#recTable tbody').innerHTML = rows.map(r =>
     '<tr><td>' + r.date + '</td><td>' + fmt(r.value) + '円</td>' +
     '<td class="rec-actions"><button data-act="edit" data-date="' + r.date + '">直す</button>' +
