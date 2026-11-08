@@ -56,6 +56,17 @@
   .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
   .btn { background: linear-gradient(135deg, #43a581, #2f7f9f); }
   .toggle button.on { background: #2f7f9f; border-color: #2f7f9f; }
+  /* ===== スマホ対応（2026-11-09、幅360pxで実寸検証） ===== */
+  .chart-head { flex-wrap: wrap; gap: 8px; }
+  td.nw { white-space: nowrap; }
+  @media (max-width: 560px) {
+    .donut-wrap { flex-direction: column; align-items: stretch; }
+    #donut { margin: 10px auto 0; }
+    .big { font-size: clamp(30px, 11vw, 40px); }
+    table { font-size: 13px; }
+    td, th { padding: 7px 2px; }
+    .rec-actions button { padding: 4px 8px; margin-left: 4px; }
+  }
 </style>
 </head>
 <body>
@@ -254,7 +265,7 @@ function renderSummary() {
   const lines = keys.map(k => {
     const v = byPeriod[k], d = v - prevVal;
     prevVal = v;
-    return '<tr><td>' + periodLabel(k) + '</td><td>' + fmt(v) + '円</td><td class="' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '+' : '') + fmt(d) + '円</td></tr>';
+    return '<tr><td>' + periodLabel(k) + '</td><td class="nw">' + fmt(v) + '円</td><td class="nw ' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '+' : '') + fmt(d) + '円</td></tr>';
   });
   document.querySelector('#yearTable tbody').innerHTML = lines.reverse().join(''); // 新しい期間を上に
 }
@@ -262,7 +273,7 @@ function renderSummary() {
 function renderRecords() {
   const rows = state.rows.slice(-5).reverse();
   document.querySelector('#recTable tbody').innerHTML = rows.map(r =>
-    '<tr><td>' + r.date + '</td><td>' + fmt(r.value) + '円</td>' +
+    '<tr><td class="nw">' + r.date + '</td><td class="nw">' + fmt(r.value) + '円</td>' +
     '<td class="rec-actions"><button data-act="edit" data-date="' + r.date + '">直す</button>' +
     '<button data-act="del" data-date="' + r.date + '">消す</button></td></tr>'
   ).join('');
