@@ -9,11 +9,10 @@
 <meta name="theme-color" content="#2f7f9f">
 
 <style>
-  :root { --ink:#2b2b2b; --sub:#777; --line:#e3ded6; --bg:#faf8f4; --card:#fff; --accent:#3a7bd5; --up:#d9534f; --down:#3a7bd5; }
+  :root { --ink:#2b2b2b; --sub:#777; --line:#e3ded6; --bg:#faf8f4; --card:#fff; --up:#d9534f; --down:#3a7bd5; }
   * { box-sizing: border-box; }
   body { margin:0; font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; background:var(--bg); color:var(--ink); }
   .wrap { max-width: 720px; margin: 0 auto; padding: 16px 14px 40px; }
-  h1 { font-size: 17px; font-weight: 600; margin: 4px 0 12px; color: var(--sub); letter-spacing: .08em; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
   .big { font-size: 40px; font-weight: 700; line-height: 1.15; }
   .big .yen { font-size: 20px; font-weight: 600; }
@@ -26,15 +25,15 @@
   .chart-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .chart-head .ttl { font-size: 14px; color: var(--sub); }
   .toggle button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 5px 14px; font-size: 13px; cursor: pointer; }
-  .toggle button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
   canvas { width: 100%; height: 260px; display: block; }
   label { font-size: 13px; color: var(--sub); display: block; margin: 10px 0 4px; }
   input[type="date"], input[type="number"], input[type="password"], input[type="text"] {
     width: 100%; font-size: 17px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff;
   }
-  .btn { width: 100%; margin-top: 14px; padding: 13px; font-size: 16px; font-weight: 600; border: none; border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer; }
+  .btn { width: 100%; margin-top: 14px; padding: 13px; font-size: 16px; font-weight: 600; border: none; border-radius: 10px; color: #fff; cursor: pointer; }
   .btn.sub { background: #fff; color: var(--ink); border: 1px solid var(--line); }
   .btn:active { opacity: .8; }
+  .btn:disabled { opacity: .55; cursor: default; }
   .msg { font-size: 14px; margin-top: 10px; min-height: 20px; }
   .err { color: #d9534f; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -47,7 +46,6 @@
   /* ===== デザイン追加（2026-11-09） ===== */
   .hero { background: linear-gradient(135deg, #43a581, #2f7f9f); color: #fff; border-radius: 16px; padding: 18px 16px; margin-bottom: 14px; box-shadow: 0 4px 14px rgba(47,127,159,.25); }
   .hero .ttl { font-size: 21px; font-weight: 700; }
-  .hero .sub { font-size: 12px; opacity: .88; margin-top: 3px; }
   .card { box-shadow: 0 2px 8px rgba(0,0,0,.05); }
   .ico { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; font-size: 16px; margin-right: 8px; flex: none; }
   .c-green { background: #e2f2e9; } .c-orange { background: #fdeeda; } .c-blue { background: #e3edfb; }
@@ -61,7 +59,6 @@
   .btn { background: linear-gradient(135deg, #43a581, #2f7f9f); }
   .toggle button.on { background: #2f7f9f; border-color: #2f7f9f; }
   .range-select { font-size: 14px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink); }
-  .period-change { font-size: 16px; font-weight: 600; margin: 2px 0 6px; min-height: 22px; }
   /* ===== スマホ対応（2026-11-09、幅360pxで実寸検証） ===== */
   .chart-head { flex-wrap: wrap; gap: 8px; }
   td.nw { white-space: nowrap; }
@@ -124,7 +121,6 @@
           <option value="1m">1ヶ月</option>
         </select>
       </div>
-      <div class="period-change" id="periodChange"></div>
       <canvas id="chart"></canvas>
       <div class="note">期間は最新の記録日を起点にしています。記録が空いた期間（60日以上）は、線をつながずに空けています。</div>
     </div>
@@ -186,6 +182,13 @@ let state = { rows: [], deposits: [], cumulativeDeposit: 0, latest: null, max: n
 let rangeMode = '1y';
 
 const fmt = n => Math.round(n).toLocaleString('ja-JP');
+// 金額の読み取り：カンマ・空白・全角数字が混ざっても数字として読む（読めなければ0）
+const parseAmount = s => {
+  if (s === null || s === undefined) return 0;
+  const t = String(s).replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[,\s、]/g, '');
+  const n = Number(t);
+  return t === '' || isNaN(n) ? 0 : n;
+};
 const todayJST = () => {
   const d = new Date(Date.now() + 9 * 60 * 60 * 1000);
   return d.toISOString().slice(0, 10);
@@ -256,11 +259,12 @@ let summaryMode = 'year';
 function periodKey(dateStr) {
   if (summaryMode === 'year') return dateStr.slice(0, 4);
   if (summaryMode === 'month') return dateStr.slice(0, 7);
-  // 週ごと：その週の月曜日の日付をキーにする
-  const d = new Date(dateStr + 'T00:00:00+09:00');
-  const dow = (d.getDay() + 6) % 7; // 月曜=0
-  d.setDate(d.getDate() - dow);
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  // 週ごと：その週の月曜日の日付をキーにする（端末のタイムゾーンに左右されないようUTCで計算）
+  const p = dateStr.split('-').map(Number);
+  const d = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+  const dow = (d.getUTCDay() + 6) % 7; // 月曜=0
+  d.setUTCDate(d.getUTCDate() - dow);
+  return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
 }
 function periodLabel(key) {
   if (summaryMode === 'year') return key + '年';
@@ -272,10 +276,13 @@ function renderSummary() {
   state.rows.forEach(r => { byPeriod[periodKey(r.date)] = r.value; }); // 期間の最後の記録が残る
   const keys = Object.keys(byPeriod).sort();
   let prevVal = 0;
-  const lines = keys.map(k => {
+  const lines = keys.map((k, i) => {
     const v = byPeriod[k], d = v - prevVal;
     prevVal = v;
-    return '<tr><td>' + periodLabel(k) + '</td><td class="nw">' + fmt(v) + '円</td><td class="nw ' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '+' : '') + fmt(d) + '円</td></tr>';
+    const dCell = i === 0
+      ? '<td class="nw">―</td>' // 一番古い期間は比べる相手がないので増減なし
+      : '<td class="nw ' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '+' : '') + fmt(d) + '円</td>';
+    return '<tr><td>' + periodLabel(k) + '</td><td class="nw">' + fmt(v) + '円</td>' + dCell + '</tr>';
   });
   document.querySelector('#yearTable tbody').innerHTML = lines.slice(-12).reverse().join(''); // 直近12件まで、新しい期間を上に（増減は全期間で計算済み）
 }
@@ -301,7 +308,7 @@ function renderRecords() {
         const now = row.value + cumulativeAsOf(date);
         const v = prompt(date + ' の評価額を入れてください（今の評価損益 ' + fmt(row.value) + '円 ＝ 評価額 ' + fmt(now) + '円）', now);
         if (v === null) return;
-        const num = Number(v);
+        const num = parseAmount(v);
         if (!num) { alert('数字を入れてください'); return; }
         const r = await callBridge('update', { date: date, hyokagaku: num });
         alert(r.ok ? '直しました：' + fmt(r.after) + '円' : 'エラー：' + r.error);
@@ -322,7 +329,7 @@ function drawDonut() {
   const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, S, S);
   const cum = state.cumulativeDeposit, val = state.latest.value;
-  const total = Math.max(cum, 1);
+  const total = Math.max(val >= 0 ? cum + val : cum, 1); // 円全体：含み益なら評価額、含み損なら元本
   const parts = val >= 0
     ? [[cum, '#43a581'], [val, '#f2a541']]
     : [[Math.max(cum + val, 0), '#43a581'], [-val, '#d9534f']];
@@ -340,11 +347,11 @@ function drawDonut() {
   ctx.fillText(cum ? (val / cum * 100).toFixed(1) + '%' : '―', cx, cy + 1);
   ctx.fillStyle = '#999'; ctx.font = '10px sans-serif';
   ctx.fillText('利回り', cx, cy + 15);
-  document.getElementById('donutLegend').innerHTML =
-    '<span class="dot" style="background:#43a581"></span>元本（累計入金） ' + fmt(cum) + '円<br>' +
-    (val >= 0
-      ? '<span class="dot" style="background:#f2a541"></span>含み益 ' + fmt(val) + '円'
-      : '<span class="dot" style="background:#d9534f"></span>含み損 ' + fmt(val) + '円');
+  document.getElementById('donutLegend').innerHTML = val >= 0
+    ? '<span class="dot" style="background:#43a581"></span>元本（累計入金） ' + fmt(cum) + '円<br>' +
+      '<span class="dot" style="background:#f2a541"></span>含み益 ' + fmt(val) + '円'
+    : '<span class="dot" style="background:#43a581"></span>評価額 ' + fmt(Math.max(cum + val, 0)) + '円<br>' +
+      '<span class="dot" style="background:#d9534f"></span>含み損 ' + fmt(val) + '円';
 }
 
 function drawChart() {
@@ -370,19 +377,6 @@ function drawChart() {
     rows = rows.filter(r => new Date(r.date + 'T00:00:00+09:00').getTime() >= xFrom);
   }
   if (!rows.length) return;
-  // ニヤニヤポイント：選んだ期間の増減（円と、期間初めの評価額に対する％）
-  const pcEl = document.getElementById('periodChange');
-  if (rows.length >= 2) {
-    const firstR = rows[0], lastR = rows[rows.length - 1];
-    const dYen = lastR.value - firstR.value;
-    const baseEval = firstR.value + cumulativeAsOf(firstR.date);
-    const pct = baseEval ? dYen / baseEval * 100 : 0;
-    pcEl.textContent = 'この期間の増減：' + (dYen >= 0 ? '+' : '') + fmt(dYen) + '円（' + (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%）';
-    pcEl.className = 'period-change ' + (dYen >= 0 ? 'up' : 'down');
-  } else {
-    pcEl.textContent = 'この期間の記録は1件です';
-    pcEl.className = 'period-change';
-  }
   const padL = 8, padR = 8, padT = 14, padB = 20;
   const xs = rows.map(r => new Date(r.date + 'T00:00:00+09:00').getTime());
   const ys = rows.map(r => r.value);
@@ -417,7 +411,10 @@ function drawChart() {
   ctx.fillStyle = '#d9534f'; ctx.beginPath(); ctx.arc(lx, ly, 3.5, 0, Math.PI * 2); ctx.fill();
   // 軸ラベル
   ctx.fillStyle = '#999';
-  ctx.fillText(rows[0].date, padL, H - 5);
+  const leftLabel = xFrom !== null
+    ? (() => { const d = new Date(xMin); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })()
+    : rows[0].date;
+  ctx.fillText(leftLabel, padL, H - 5);
   const lastLabel = rows[rows.length - 1].date;
   ctx.fillText(lastLabel, W - padR - ctx.measureText(lastLabel).width, H - 5);
 }
@@ -428,7 +425,9 @@ document.getElementById('passBtn').addEventListener('click', async () => {
   const msg = document.getElementById('passMsg');
   if (!v) { msg.textContent = '合言葉を入れてください'; return; }
   localStorage.setItem(PASS_KEY, v);
-  msg.textContent = '';
+  msg.textContent = 'つながっています…';
+  msg.className = 'msg';
+  document.getElementById('passBtn').disabled = true;
   try {
     await load();
     document.getElementById('passCard').classList.add('hidden');
@@ -436,17 +435,21 @@ document.getElementById('passBtn').addEventListener('click', async () => {
     requestAnimationFrame(() => { drawChart(); drawDonut(); });
   } catch (e) {
     msg.textContent = 'つながりませんでした：' + e.message + '（合言葉が違うと読み取れません）';
+    document.getElementById('passBtn').disabled = false;
   }
 });
 
 document.getElementById('addBtn').addEventListener('click', async () => {
   const date = document.getElementById('addDate').value || todayJST();
-  const v = Number(document.getElementById('addValue').value);
+  const v = parseAmount(document.getElementById('addValue').value);
   const msg = document.getElementById('addMsg');
   if (!v) { msg.textContent = '評価額を入れてください'; msg.className = 'msg err'; return; }
   const soneki = v - cumulativeAsOf(date);
   if (!confirm(date + ' の評価損益は ' + fmt(soneki) + '円 になります。記録しますか？')) return;
+  const btn = document.getElementById('addBtn');
+  btn.disabled = true;
   const r = await callBridge('add', { date: date, hyokagaku: v });
+  btn.disabled = false;
   if (r.ok) {
     msg.textContent = '記録しました：評価損益 ' + fmt(r.hyokaSoneki) + '円';
     msg.className = 'msg';
@@ -457,12 +460,15 @@ document.getElementById('addBtn').addEventListener('click', async () => {
 
 document.getElementById('depBtn').addEventListener('click', async () => {
   const date = document.getElementById('depDate').value || todayJST();
-  const v = Number(document.getElementById('depAmount').value);
+  const v = parseAmount(document.getElementById('depAmount').value);
   const msg = document.getElementById('depMsg');
   if (!v) { msg.textContent = '今回入れた金額を入れてください'; msg.className = 'msg err'; return; }
   const before = cumulativeAsOf(date);
   if (!confirm('累計入金額 ' + fmt(before) + '円 ＋ 今回 ' + fmt(v) + '円 ＝ ' + fmt(before + v) + '円 で登録しますか？')) return;
+  const btn = document.getElementById('depBtn');
+  btn.disabled = true;
   const r = await callBridge('addDeposit', { date: date, amount: v });
+  btn.disabled = false;
   if (r.ok) {
     msg.textContent = '入金を記録しました：累計 ' + fmt(r.after) + '円';
     msg.className = 'msg';
@@ -490,11 +496,21 @@ window.addEventListener('resize', () => { if (state.rows.length) drawChart(); })
 document.getElementById('addDate').value = todayJST();
 document.getElementById('depDate').value = todayJST();
 if (localStorage.getItem(PASS_KEY)) {
+  const msg = document.getElementById('passMsg');
+  msg.textContent = '保存済みの合言葉で読み込み中…';
+  msg.className = 'msg';
+  document.getElementById('passInput').disabled = true;
+  document.getElementById('passBtn').disabled = true;
   load().then(() => {
     document.getElementById('passCard').classList.add('hidden');
     document.getElementById('main').classList.remove('hidden');
     requestAnimationFrame(() => { drawChart(); drawDonut(); });
-  }).catch(() => { /* 合言葉の再入力を促す */ });
+  }).catch((e) => {
+    msg.textContent = 'つながりませんでした：' + e.message + '（合言葉を入れ直してください）';
+    msg.className = 'msg err';
+    document.getElementById('passInput').disabled = false;
+    document.getElementById('passBtn').disabled = false;
+  });
 }
 </script>
 </body>
