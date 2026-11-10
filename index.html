@@ -159,7 +159,7 @@
         <thead><tr><th>期間</th><th>期末の評価損益</th><th>増減</th></tr></thead>
         <tbody></tbody>
       </table>
-      <div class="note">新しい期間が上に来ます。記録のない期間は飛ばして、前の期間と比べます。週は月曜始まりです。</div>
+      <div class="note">直近12件までを表示します。新しい期間が上に来ます。記録のない期間は飛ばして、前の期間と比べます。週は月曜始まりです。</div>
     </div>
 
     <!-- 最近の記録（修正・削除） -->
@@ -270,7 +270,7 @@ function renderSummary() {
     prevVal = v;
     return '<tr><td>' + periodLabel(k) + '</td><td class="nw">' + fmt(v) + '円</td><td class="nw ' + (d >= 0 ? 'up' : 'down') + '">' + (d >= 0 ? '+' : '') + fmt(d) + '円</td></tr>';
   });
-  document.querySelector('#yearTable tbody').innerHTML = lines.reverse().join(''); // 新しい期間を上に
+  document.querySelector('#yearTable tbody').innerHTML = lines.slice(-12).reverse().join(''); // 直近12件まで、新しい期間を上に（増減は全期間で計算済み）
 }
 
 function renderRecords() {
