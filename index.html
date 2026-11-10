@@ -61,6 +61,7 @@
   .btn { background: linear-gradient(135deg, #43a581, #2f7f9f); }
   .toggle button.on { background: #2f7f9f; border-color: #2f7f9f; }
   .range-select { font-size: 14px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink); }
+  .period-change { font-size: 16px; font-weight: 600; margin: 2px 0 6px; min-height: 22px; }
   /* ===== スマホ対応（2026-11-09、幅360pxで実寸検証） ===== */
   .chart-head { flex-wrap: wrap; gap: 8px; }
   td.nw { white-space: nowrap; }
@@ -123,6 +124,7 @@
           <option value="1m">1ヶ月</option>
         </select>
       </div>
+      <div class="period-change" id="periodChange"></div>
       <canvas id="chart"></canvas>
       <div class="note">期間は最新の記録日を起点にしています。記録が空いた期間（60日以上）は、線をつながずに空けています。</div>
     </div>
@@ -368,6 +370,19 @@ function drawChart() {
     rows = rows.filter(r => new Date(r.date + 'T00:00:00+09:00').getTime() >= xFrom);
   }
   if (!rows.length) return;
+  // ニヤニヤポイント：選んだ期間の増減（円と、期間初めの評価額に対する％）
+  const pcEl = document.getElementById('periodChange');
+  if (rows.length >= 2) {
+    const firstR = rows[0], lastR = rows[rows.length - 1];
+    const dYen = lastR.value - firstR.value;
+    const baseEval = firstR.value + cumulativeAsOf(firstR.date);
+    const pct = baseEval ? dYen / baseEval * 100 : 0;
+    pcEl.textContent = 'この期間の増減：' + (dYen >= 0 ? '+' : '') + fmt(dYen) + '円（' + (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%）';
+    pcEl.className = 'period-change ' + (dYen >= 0 ? 'up' : 'down');
+  } else {
+    pcEl.textContent = 'この期間の記録は1件です';
+    pcEl.className = 'period-change';
+  }
   const padL = 8, padR = 8, padT = 14, padB = 20;
   const xs = rows.map(r => new Date(r.date + 'T00:00:00+09:00').getTime());
   const ys = rows.map(r => r.value);
